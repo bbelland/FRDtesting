@@ -115,7 +115,7 @@ class FRDsolver(object):
         
         return (residuallist,minFRD)
     
-    def returnFRDrange():
+    def returnFRDrange(self):
         if np.isnan(self.residuallist):
             raise Error('Must run find_FRD_compare_positions first.')
         else:
