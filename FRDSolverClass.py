@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd #Is this truly required?
 from scipy.ndimage.measurements import center_of_mass #This function is imported in order to measure changes about the center of the PSF.
 from scipy import interpolate #Is this required?
+from scipy.ndimage.interpolation import shift
 import warnings
 
 class FRDsolver(object):
@@ -9,16 +10,16 @@ class FRDsolver(object):
     
     def __init__(self, FRDlist, knownimagelist, imagetosolve):
         """Generates a FRDsolver object"""
+
+        self.FRDlist = FRDlist
+        self.knownimagelist = knownimagelist
+        self.imagetosolve = imagetosolve
         
         self._checkFRDlist(FRDlist)
         self._checkimagelists(knownimagelist,imagetosolve)
         self._checklengths(FRDlist,knownimagelist)
         
-        self.FRDlist = FRDlist
-        self.knownimagelist = knownimagelist
-        self.imagetosolve = imagetosolve
-        
-        self.residuallist = np.nan
+        self.residuallist = np.array([np.nan])
 
         
     def _checkFRDlist(self,FRDlist):
@@ -41,7 +42,26 @@ class FRDsolver(object):
             
         for image in knownimagelist:
             if np.shape(image) != np.shape(imagetosolve):
-                raise Exception('The input images of known FRD should have the same dimensions as the image to solve.')  
+                raise Exception('The input images of known FRD should have the same dimensions as the image to solve.') 
+
+        #self._recenter_imagelist()
+
+    def _recenter_image(self,image,centertoshiftto):
+        """Shift an image to a given center, centertoshiftto"""
+        return shift(image,np.array(centertoshiftto)-np.array(center_of_mass(image)))
+
+    def _recenter_imagelist(self):
+        """Shifts all images to the same center as the first image in the knownimagelist"""  
+
+        center_to_shift = center_of_mass(self.knownimagelist[0])
+
+        temporarylist = self.knownimagelist
+
+        for element in range(len(temporarylist)):
+             temporarylist[element] = self._recenter_image(temporarylist[element],center_to_shift)
+
+        self.knownimagelist = temporarylist
+
         
     def _checklengths(self, FRDlist, knownimagelist):
         "Verifies that the FRD inputs match the inputted images"
@@ -108,7 +128,7 @@ class FRDsolver(object):
                 minFRD = FRDlist[FRDindex] #Still need to return the metric
         
         if np.isnan(minFRD):
-            raise Error('No FRD residuals were calculated.')
+            raise Exception('No FRD residuals were calculated.')
             
         self.residuallist = residuallist
         self.minFRD = minFRD
@@ -116,9 +136,12 @@ class FRDsolver(object):
         return (residuallist,minFRD)
     
     def returnFRDrange(self):
-        if np.isnan(self.residuallist):
-            raise Error('Must run find_FRD_compare_positions first.')
+        if not any(np.isnan(self.residuallist)):
+            raise Exception('Must run find_FRD_compare_positions first.')
         else:
+            if np.sum([residuallist<1]) == 0:
+                warnings.warn('No FRD value gives a chi squared under 1.')
+            #Test to see if terms under 1 stay under 1?
             return (np.min(residuallist[residuallist<1]),np.max(residuallist[residuallist<1]))
     
     
