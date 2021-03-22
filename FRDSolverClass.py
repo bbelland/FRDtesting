@@ -3,6 +3,7 @@ import pandas as pd #Is this truly required?
 from scipy.ndimage.measurements import center_of_mass #This function is imported in order to measure changes about the center of the PSF.
 from scipy import interpolate #Is this required?
 from scipy.ndimage.interpolation import shift
+#import matplotlib.pyplot as plt #Debug only
 import warnings
 
 class FRDsolver(object):
@@ -132,11 +133,85 @@ class FRDsolver(object):
             
         self.residuallist = residuallist
         self.minFRD = minFRD
+        #print(np.array(residuallist)<2)
+
+        if np.sum(np.array(residuallist)<2) >= 2:
+            uncertaintylower = np.min(FRDlist[np.array(residuallist)<2]) 
+            uncertaintyupper = np.max(FRDlist[np.array(residuallist)<2])
         
-        return (residuallist,minFRD)
+            print("Minimum FRD is {} and within range {} to {}".format(minFRD,uncertaintylower,uncertaintyupper))
+            
+            if uncertaintylower == np.min(FRDlist):
+                warnings.warn('Extracted FRD range extends beyond the minimum of the inputted FRD range! The uncertainty may be larger than the quoted value')
+
+            if uncertaintyupper == np.max(FRDlist):
+                warnings.warn('Extracted FRD range extends beyond the maximum of the inputted FRD range! The uncertainty may be larger than the quoted value')
+
+            if uncertaintylower == minFRD:
+                warnings.warn('Minimum of the extracted FRD range matches minimum FRD extracted! The uncertainty may extend lower than the quoted value')
+
+            if uncertaintyupper == minFRD:
+                warnings.warn('Maximum of the extracted FRD range matches minimum FRD extracted! The uncertainty may extend higher than the quoted value')
+
+            uncertaintyrange = uncertaintyupper - uncertaintylower 
+
+        if np.sum(np.array(residuallist)<2) == 1:
+            #print('Only the minimum FRD has less than 2 chi squared value. You may want to increase the number of FRD values tested near minFRD to get an accurate uncertainty')
+            uncertaintyrange = 0
+
+        if np.sum(np.array(residuallist)<2) == 0:
+            #print('None of the pixels have chi squared value less than 2. Returning the minimum residual's uncertainty. Check the residual of the output to verify it is')
+            uncertaintyrange = 0
+        
+        return (residuallist,minFRD,uncertaintyrange)
+
+    def residual_calculate_smarter(self,imagetosolve,FRDlist,knownimagelist,minFRD,noiselevel):
+    
+        residualvallist = []
+        currentimage = imagetosolve 
+
+        mask = currentimage>noiselevel #Only select pixels with counts significantly above noise level, i.e. 100
+
+        if minFRD is not None: 
+            guessFRD = minFRD
+        else:
+            guessFRD = FRDlist[int(len(FRDlist)/2)] #Arbitrary guess
+
+        modelimage = knownimagelist[FRDlist == guessFRD]
+
+        
+        #modeltocompare = guessimage 
+
+        for imageindex in range(len(knownimagelist)):
+            #First calculate what is the mask
+            modeltocompare = knownimagelist[imageindex]
+            currentFRD = FRDlist[imageindex]
+            if currentFRD == guessFRD:
+                continue
+            else:
+                FRDresidual = np.abs(modeltocompare*mask - modelimage*mask)
+                normalizedweighting = np.nan_to_num(FRDresidual/np.sqrt(currentimage)) #This compares the magnitude of the FRD change to the noise of the currentimage 
+                normalizedweighting = normalizedweighting/np.max(normalizedweighting)
+                residualval = normalizedweighting*np.divide(np.square(modeltocompare-imagetosolve),imagetosolve)
+                residualval = residualval/np.sum(normalizedweighting) #Number of pixels in the calculation
+                residualvallist.append(np.sum(residualval))
+                #plt.imshow(residualval[0])
+                #plt.colorbar()
+                #plt.show()
+        
+        testFRDlist = FRDlist[FRDlist != guessFRD]
+        #plt.plot(testFRDlist,residualvallist)
+        #plt.show()
+
+        return True 
+
+
+
+
+
     
     def returnFRDrange(self):
-        if not any(np.isnan(self.residuallist)):
+        if any(np.isnan(self.residuallist)):
             raise Exception('Must run find_FRD_compare_positions first.')
         else:
             if np.sum([residuallist<1]) == 0:
