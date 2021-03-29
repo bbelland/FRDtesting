@@ -9,39 +9,39 @@ import warnings
 class FRDsolver(object):
     """FRD solver function for PSF inputs"""
     
-    def __init__(self, FRDlist, knownimagelist, imagetosolve):
+    def __init__(self, FRDarray, knownimagearray, imagetosolve):
         """Generates a FRDsolver object"""
 
-        self.FRDlist = FRDlist
-        self.knownimagelist = knownimagelist
+        self.FRDarray = FRDarray
+        self.knownimagearray = knownimagearray
         self.imagetosolve = imagetosolve
         
-        self._checkFRDlist(FRDlist)
-        self._checkimagelists(knownimagelist,imagetosolve)
-        self._checklengths(FRDlist,knownimagelist)
+        self._checkFRDarray(FRDarray)
+        self._checkimagearrays(knownimagearray,imagetosolve)
+        self._checklengths(FRDarray,knownimagearray)
         
         self.residuallist = np.array([np.nan])
 
         
-    def _checkFRDlist(self,FRDlist):
+    def _checkFRDarray(self,FRDarray):
         """Validates the input FRD list"""
         
-        if not isinstance(FRDlist,np.ndarray):
-            raise Exception('FRDlist should be a np.ndarray')
+        if not isinstance(FRDarray,np.ndarray):
+            raise Exception('FRDarray should be a np.ndarray')
             
-        if not np.array_equal(FRDlist,np.sort(FRDlist)):
-            warnings.warn('FRDlist is not sorted!')  
+        if not np.array_equal(FRDarray,np.sort(FRDarray)):
+            warnings.warn('FRDarray is not sorted!')  
 
-    def _checkimagelists(self,knownimagelist,imagetosolve):
+    def _checkimagearrays(self,knownimagearray,imagetosolve):
         """Validates the input images"""
         
-        if not isinstance(knownimagelist,np.ndarray):
-            raise Exception('knownimagelist should be a np.ndarray')
+        if not isinstance(knownimagearray,np.ndarray):
+            raise Exception('knownimagearray should be a np.ndarray')
         
         if not isinstance(imagetosolve,np.ndarray):
             raise Exception('imagetosolve should be a np.ndarray')
             
-        for image in knownimagelist:
+        for image in knownimagearray:
             if np.shape(image) != np.shape(imagetosolve):
                 raise Exception('The input images of known FRD should have the same dimensions as the image to solve.') 
 
@@ -52,28 +52,28 @@ class FRDsolver(object):
         return shift(image,np.array(centertoshiftto)-np.array(center_of_mass(image)))
 
     def _recenter_imagelist(self):
-        """Shifts all images to the same center as the first image in the knownimagelist"""  
+        """Shifts all images to the same center as the first image in the knownimagearray"""  
 
-        center_to_shift = center_of_mass(self.knownimagelist[0])
+        center_to_shift = center_of_mass(self.knownimagearray[0])
 
-        temporarylist = self.knownimagelist
+        temporaryarray = self.knownimagearray
 
-        for element in range(len(temporarylist)):
-             temporarylist[element] = self._recenter_image(temporarylist[element],center_to_shift)
+        for element in range(len(temporaryarray)):
+             temporaryarray[element] = self._recenter_image(temporaryarray[element],center_to_shift)
 
-        self.knownimagelist = temporarylist
+        self.knownimagearray = temporaryarray
 
         
-    def _checklengths(self, FRDlist, knownimagelist):
+    def _checklengths(self, FRDarray, knownimagearray):
         "Verifies that the FRD inputs match the inputted images"
         
-        if not len(FRDlist) == len(knownimagelist):
-            raise Exception('The length of FRDlist is not equal to the length of knownimagelist. Make sure each image has a corresponding FRD.')
+        if not len(FRDarray) == len(knownimagearray):
+            raise Exception('The length of FRDarray is not equal to the length of knownimagearray. Make sure each image has a corresponding FRD.')
             
-        if len(FRDlist) == 0:
+        if len(FRDarray) == 0:
             raise Exception('At least one FRD must be input!')
         
-        if len(FRDlist) == 1:
+        if len(FRDarray) == 1:
             warnings.warn('No meaningful result will occur when only one comparison FRD value is given.')
 
     def residual_calculate(self,imagetosolve,guessimage):
@@ -93,8 +93,8 @@ class FRDsolver(object):
         
         return residualval            
             
-    def find_FRD_compare_positions(self, FRDlist, knownimagelist, imagetosolve):
-        """MinFRD = find_FRD_compare_positions(self, FRDlist, knownimagelist, imagetosolve)
+    def find_FRD_compare_positions(self, FRDarray, knownimagearray, imagetosolve):
+        """MinFRD = find_FRD_compare_positions(self, FRDarray, knownimagearray, imagetosolve)
         Solves for minimal FRD and returns it
         
         Parameters
@@ -104,29 +104,29 @@ class FRDsolver(object):
             PSF image with unknown FRD.
         
     
-        knownimagelist: list
-            A list of PSF image arrays of known FRDs
+        knownimagearray: array
+            An array of PSF image arrays of known FRDs
     
         
-        FRDlist: list
-            A list of FRDs of the corresponding PSF image arrays in imagelist
+        FRDarray: array
+            An array of FRDs of the corresponding PSF image arrays in knownimagearray
 
         """
         
         
         #Begin with validation of the inputs
-        self._checkFRDlist(FRDlist)
-        self._checkimagelists(knownimagelist,imagetosolve)
-        self._checklengths(FRDlist, knownimagelist)
+        self._checkFRDarray(FRDarray)
+        self._checkimagearrays(knownimagearray,imagetosolve)
+        self._checklengths(FRDarray, knownimagearray)
             
         residuallist = []
         minFRD = np.nan
     
-        for FRDindex in range(len(FRDlist)):
-            residual_current = self.residual_calculate(imagetosolve,knownimagelist[FRDindex])
-            residuallist.append(self.residual_calculate(imagetosolve,knownimagelist[FRDindex]))
+        for FRDindex in range(len(FRDarray)):
+            residual_current = self.residual_calculate(imagetosolve,knownimagearray[FRDindex])
+            residuallist.append(self.residual_calculate(imagetosolve,knownimagearray[FRDindex]))
             if residual_current == np.min(residuallist):
-                minFRD = FRDlist[FRDindex] #Still need to return the metric
+                minFRD = FRDarray[FRDindex] #Still need to return the metric
         
         if np.isnan(minFRD):
             raise Exception('No FRD residuals were calculated.')
@@ -136,22 +136,26 @@ class FRDsolver(object):
         #print(np.array(residuallist)<2)
 
         if np.sum(np.array(residuallist)<2) >= 2:
-            uncertaintylower = np.min(FRDlist[np.array(residuallist)<2]) 
-            uncertaintyupper = np.max(FRDlist[np.array(residuallist)<2])
+            uncertaintylower = np.min(FRDarray[np.array(residuallist)<2]) 
+            uncertaintyupper = np.max(FRDarray[np.array(residuallist)<2])
         
             print("Minimum FRD is {} and within range {} to {}".format(minFRD,uncertaintylower,uncertaintyupper))
             
-            if uncertaintylower == np.min(FRDlist):
+            if uncertaintylower == np.min(FRDarray):
                 warnings.warn('Extracted FRD range extends beyond the minimum of the inputted FRD range! The uncertainty may be larger than the quoted value')
 
-            if uncertaintyupper == np.max(FRDlist):
+            if uncertaintyupper == np.max(FRDarray):
                 warnings.warn('Extracted FRD range extends beyond the maximum of the inputted FRD range! The uncertainty may be larger than the quoted value')
 
             if uncertaintylower == minFRD:
                 warnings.warn('Minimum of the extracted FRD range matches minimum FRD extracted! The uncertainty may extend lower than the quoted value')
+                
+                #Add extrapolation
 
             if uncertaintyupper == minFRD:
                 warnings.warn('Maximum of the extracted FRD range matches minimum FRD extracted! The uncertainty may extend higher than the quoted value')
+                
+                #Add extrapolation
 
             uncertaintyrange = uncertaintyupper - uncertaintylower 
 
@@ -165,7 +169,7 @@ class FRDsolver(object):
         
         return (residuallist,minFRD,uncertaintyrange)
 
-    def residual_calculate_smarter(self,imagetosolve,FRDlist,knownimagelist,minFRD,noiselevel):
+    def residual_calculate_smarter(self,imagetosolve,FRDarray,knownimagearray,minFRD,noiselevel):
     
         residualvallist = []
         currentimage = imagetosolve 
@@ -175,17 +179,17 @@ class FRDsolver(object):
         if minFRD is not None: 
             guessFRD = minFRD
         else:
-            guessFRD = FRDlist[int(len(FRDlist)/2)] #Arbitrary guess
+            guessFRD = FRDarray[int(len(FRDarray)/2)] #Arbitrary guess
 
-        modelimage = knownimagelist[FRDlist == guessFRD]
+        modelimage = knownimagearray[FRDarray == guessFRD]
 
         
         #modeltocompare = guessimage 
 
-        for imageindex in range(len(knownimagelist)):
+        for imageindex in range(len(knownimagearray)):
             #First calculate what is the mask
-            modeltocompare = knownimagelist[imageindex]
-            currentFRD = FRDlist[imageindex]
+            modeltocompare = knownimagearray[imageindex]
+            currentFRD = FRDarray[imageindex]
             if currentFRD == guessFRD:
                 continue
             else:
@@ -199,8 +203,8 @@ class FRDsolver(object):
                 #plt.colorbar()
                 #plt.show()
         
-        testFRDlist = FRDlist[FRDlist != guessFRD]
-        #plt.plot(testFRDlist,residualvallist)
+        testFRDarray = FRDarray[FRDarray != guessFRD]
+        #plt.plot(testFRDarray,residualvallist)
         #plt.show()
 
         return True 
@@ -246,4 +250,5 @@ class FRDsolver(object):
         res = shgo(residual_compare,bounds,args=([position,FRDarray,imagelist,imagetosolve]),n=10,options={'ftol':1e-5, 'maxev':10}) #Minimization algorithm.
         #print(res)
         return res.x   """ 
+
 
