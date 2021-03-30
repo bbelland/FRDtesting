@@ -137,12 +137,12 @@ class FRDsolver(object):
         #print(np.array(residuallist)<2)
 
         if np.sum(np.array(residuallist)<2) >= 2:
-            uncertaintylower = np.min(FRDarray[np.array(residuallist)<2]) 
-            uncertaintyupper = np.max(FRDarray[np.array(residuallist)<2])
+            uncertaintylowerguess = np.min(FRDarray[np.array(residuallist)<2]) 
+            uncertaintyupperguess = np.max(FRDarray[np.array(residuallist)<2])
         
             print("Minimum FRD is {} and within range {} to {}".format(minFRD,uncertaintylower,uncertaintyupper))
             
-            if uncertaintylower == np.min(FRDarray):
+            if uncertaintylowerguess == np.min(FRDarray):
                 warnings.warn('Extracted FRD range extends beyond the minimum of the inputted FRD range! The uncertainty may be larger than the quoted value')
                 
                 #Add extrapolation
@@ -150,20 +150,30 @@ class FRDsolver(object):
 
                 uncertaintylower = root_scalar(functioninterpolation,bracket = [0,np.min(FRDarray)],method='brentq').root
                 
+            else:
+                functioninterpolation = interpolate.interp1d(FRDarray,np.array(residuallist) - 2)
 
-            if uncertaintyupper == np.max(FRDarray):
+                uncertaintylower = root_scalar(functioninterpolation,bracket = [np.min(uncertaintylowerguess),uncertaintylowerguess],method='brentq').root
+
+                
+                
+            if uncertaintyupperguess == np.max(FRDarray):
                 warnings.warn('Extracted FRD range extends beyond the maximum of the inputted FRD range! The uncertainty may be larger than the quoted value')
                 
                 #Add extrapolation
                 functioninterpolation = interpolate.interp1d(FRDarray,np.array(residuallist) - 2,fill_value="extrapolate")
 
                 uncertaintyupper = root_scalar(functioninterpolation,bracket = [np.max(FRDarray),3*np.max(FRDarray)],method='brentq').root #Arbitrary currently; need a better upper bound.
-                
 
-            if uncertaintylower == minFRD:
+            else:
+                functioninterpolation = interpolate.interp1d(FRDarray,np.array(residuallist) - 2)
+
+                uncertaintyupper = root_scalar(functioninterpolation,bracket = [uncertaintyupperguess,np.max(FRDarray)],method='brentq').root
+
+            if uncertaintylowerguess == minFRD:
                 warnings.warn('Minimum of the extracted FRD range matches minimum FRD extracted! The uncertainty may extend lower than the quoted value')
 
-            if uncertaintyupper == minFRD:
+            if uncertaintyupperguess== minFRD:
                 warnings.warn('Maximum of the extracted FRD range matches minimum FRD extracted! The uncertainty may extend higher than the quoted value')
                 
                 #Add extrapolation
