@@ -3,6 +3,7 @@ import pandas as pd #Is this truly required?
 from scipy.ndimage.measurements import center_of_mass #This function is imported in order to measure changes about the center of the PSF.
 from scipy import interpolate #Is this required?
 from scipy.ndimage.interpolation import shift
+from scipy.optimize import root_scalar
 #import matplotlib.pyplot as plt #Debug only
 import warnings
 
@@ -143,29 +144,39 @@ class FRDsolver(object):
             
             if uncertaintylower == np.min(FRDarray):
                 warnings.warn('Extracted FRD range extends beyond the minimum of the inputted FRD range! The uncertainty may be larger than the quoted value')
+                
+                #Add extrapolation
+                functioninterpolation = interpolate.interp1d(FRDarray,np.array(residuallist) - 2,fill_value="extrapolate")
+
+                uncertaintylower = root_scalar(functioninterpolation,bracket = [0,np.min(FRDarray)],method='brentq').root
+                
 
             if uncertaintyupper == np.max(FRDarray):
                 warnings.warn('Extracted FRD range extends beyond the maximum of the inputted FRD range! The uncertainty may be larger than the quoted value')
+                
+                #Add extrapolation
+                functioninterpolation = interpolate.interp1d(FRDarray,np.array(residuallist) - 2,fill_value="extrapolate")
+
+                uncertaintyupper = root_scalar(functioninterpolation,bracket = [np.max(FRDarray),3*np.max(FRDarray)],method='brentq').root #Arbitrary currently; need a better upper bound.
+                
 
             if uncertaintylower == minFRD:
                 warnings.warn('Minimum of the extracted FRD range matches minimum FRD extracted! The uncertainty may extend lower than the quoted value')
-                
-                #Add extrapolation
 
             if uncertaintyupper == minFRD:
                 warnings.warn('Maximum of the extracted FRD range matches minimum FRD extracted! The uncertainty may extend higher than the quoted value')
                 
                 #Add extrapolation
 
-            uncertaintyrange = uncertaintyupper - uncertaintylower 
+            uncertaintyrange = (uncertaintylower,uncertaintyupper) 
 
         if np.sum(np.array(residuallist)<2) == 1:
             #print('Only the minimum FRD has less than 2 chi squared value. You may want to increase the number of FRD values tested near minFRD to get an accurate uncertainty')
-            uncertaintyrange = 0
+            uncertaintyrange = np.nan
 
         if np.sum(np.array(residuallist)<2) == 0:
             #print('None of the pixels have chi squared value less than 2. Returning the minimum residual's uncertainty. Check the residual of the output to verify it is')
-            uncertaintyrange = 0
+            uncertaintyrange = np.nan
         
         return (residuallist,minFRD,uncertaintyrange)
 
